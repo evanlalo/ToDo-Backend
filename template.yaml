@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless patterns - Amazon API Gateway to AWS Lambda to Amazon DynamoDB
+
+Parameters:
+  ENVIRONMENT:
+    Type: String
+    Description: AWS Environment where code is being executed (dev or prod).
+    Default: "dev"
+  DYNAMO_URL:
+    Type: String
+    Description: AWS local DynamoDB instance URI (will only be used if ENVIRONMENT is "dev")
+    # Default: "http://localhost:8000"
+    Default: "http://host.docker.internal:8000"
+  TABLE_NAME:
+    Type: String
+    Description: DynamoDB table name.
+    Default: "todo_1"
+
+Resources:
+  Index:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      Runtime: python3.9
+      Timeout: 10
+      CodeUri: src/
+      Policies:
+        DynamoDBCrudPolicy:
+          TableName: !Ref TABLE_NAME
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref ENVIRONMENT
+          DYNAMO_URL: !Ref DYNAMO_URL
+          TABLE_NAME: !Ref TABLE_NAME
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /todos/list
+            Method: GET
+  
+  Create:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: create.handler
+      Runtime: python3.9
+      Timeout: 10
+      CodeUri: src/
+      Policies:
+        DynamoDBCrudPolicy:
+          TableName: !Ref TABLE_NAME
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref ENVIRONMENT
+          DYNAMO_URL: !Ref DYNAMO_URL
+          TABLE_NAME: !Ref TABLE_NAME
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /todos/create
+            Method: POST
+
+  Delete:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: delete.handler
+      Runtime: python3.9
+      Timeout: 10
+      CodeUri: src/
+      Policies:
+        DynamoDBCrudPolicy:
+          TableName: !Ref TABLE_NAME
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref ENVIRONMENT
+          DYNAMO_URL: !Ref DYNAMO_URL
+          TABLE_NAME: !Ref TABLE_NAME
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /todos/delete/{pk}
+            Method: DELETE
+
+  DynamoDBTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: ToDos
+Outputs:
+  EndpointUrl:
+    Description: 'HTTP REST endpoint URL'
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod'
